@@ -1,0 +1,1 @@
+# stencil_bitwise_capping
