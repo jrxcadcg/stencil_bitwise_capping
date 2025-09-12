@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>three.js – clipping + stencil (Vite)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #263238; }
+      #info {
+        position: absolute;
+        top: 10px; left: 10px;
+        color: #fff; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        z-index: 10;
+      }
+      #info a { color: #90caf9; text-decoration: none; }
+      #info a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>
+      – solid geometry with clip planes and stencil materials
+    </div>
+    <script type="module" src="/src/mainSlice.js"></script>
+  </body>
+</html>
