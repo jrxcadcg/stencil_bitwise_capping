@@ -7,64 +7,72 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 let camera, scene, renderer, stats;
 let planes, planeObjects, planeHelpers;
 let clock;
-let modelsGroup; // 顶层组，容纳所有模型
+let modelsGroup; // A top-level group to hold all models
 
 const params = {
-  animate: true,
-  modelCount: 18,
-  modelOffset: 1.2,             // 行列间距（同时用于 Z 列间距与 Y 行间距）
-  modelsPerRow: 8,             // 每行可放几个模型（沿 Z 排列），超过则沿 Y 换行
+  maxFPX: false,
+  modelCount: 10,
+  modelOffset: 1.2,       // Spacing between models (used for both Z columns and Y rows)
+  modelsPerRow: 10,        // Number of models per row (arranged along the Z-axis), wraps to the Y-axis
   planeX: { constant: 0, negated: false, displayHelper: false }
 };
 
-init();
+// init();
 
-
-
-// 生成/重建所有模型（网格排布：Z 为列，Y 为行；超过 modelsPerRow 沿 Y 换行）
+/**
+ * Generates or recreates all models.
+ * Grid layout: Z-axis for columns, Y-axis for rows.
+ * Wraps to the next row on the Y-axis if modelsPerRow is exceeded.
+ */
 function createModels() {
-  // 清旧
+  // Clean up old models
   if (modelsGroup) scene.remove(modelsGroup);
   planeObjects = [];
   modelsGroup = new THREE.Group();
   scene.add(modelsGroup);
 
-  // 共享资源
-  const geometry = new THREE.TorusGeometry(0.4, 0.15, 2200, 600); // 也可换 Sphere/TorusKnot
-// const geometry = new THREE.TorusKnotGeometry(0.4, 0.15, 220, 600); // 也可换 Sphere/TorusKnot
-//  const geometry = new THREE.SphereGeometry(0.8, 64, 32);
+  // Shared resources
+  const geometry = new THREE.TorusGeometry(0.4, 0.15, 1000, 1000); // Can also be SphereGeometry or TorusKnotGeometry
+      // face
+    let faceCount;
+    if (geometry.index) {
+        faceCount = geometry.index.count / 3;
+    } else {
+        faceCount = geometry.attributes.position.count / 3;
+    }
+
+    console.log('face:', faceCount);
+  // const geometry = new THREE.TorusKnotGeometry(0.4, 0.15, 220, 600);
+  // const geometry = new THREE.SphereGeometry(0.8, 64, 32);
   const planeGeom = new THREE.PlaneGeometry(4, 4);
   const plane = planes[0];
 
-  // 计算网格居中偏移
-  const cols = Math.max(1, Math.floor(params.modelsPerRow)); // 每行列数（沿 Z）
-  const rows = Math.ceil(params.modelCount / cols);          // 行数（沿 Y）
+  // Calculate grid center offset
+  const cols = Math.max(1, Math.floor(params.modelsPerRow)); // Number of columns per row (along Z-axis)
+  const rows = Math.ceil(params.modelCount / cols);         // Number of rows (along Y-axis)
   const halfCols = (cols - 1) / 2;
   const halfRows = (rows - 1) / 2;
 
   for (let i = 0; i < params.modelCount; i++) {
     const modelContainer = new THREE.Group();
 
-    // 网格索引：col 沿 Z，row 沿 Y
+    // Grid index: col along Z-axis, row along Y-axis
     const row = Math.floor(i / cols);
     const col = i % cols;
 
-    // 居中摆放：Z 为列间距，Y 为行间距
+    // Center placement: Z for column spacing, Y for row spacing
     modelContainer.position.z = (col - halfCols) * params.modelOffset;
     modelContainer.position.y = (row - halfRows) * params.modelOffset;
 
-    // (1) 模板标记
-    //const stencilGroup = createPlaneStencilGroup(geometry, plane, i + 1.05);
-    //modelContainer.add(stencilGroup);
 
-    // 为每个模型生成不同的颜色（主体 + 补面）
+    // Generate a unique color for each model (body + cap)
     const hue = params.modelCount > 0 ? (i / params.modelCount) % 1 : 0;
-    const bodyColor = new THREE.Color().setHSL(hue, 0.7, 0.55);              // 主体颜色
-    const capColor  = bodyColor;    // 补面互补色
-    const index = i%8;
+    const bodyColor = new THREE.Color().setHSL(hue, 0.7, 0.55); // Main body color
+    const capColor = bodyColor;                                 // Capping plane color
+    const index = i % 8;
     const indexOrder = Math.floor(i / 8 + Number.EPSILON);
 
-    // (2) 实体 —— 在本模型的 stencil 之后渲染
+    // (1) Solid model -- this material writes to the stencil buffer
     const solidMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
       metalness: 0.1,
@@ -80,21 +88,20 @@ function createModels() {
       stencilFail: THREE.InvertStencilOp,
       stencilZFail: THREE.InvertStencilOp,
       stencilZPass: THREE.InvertStencilOp,
-    
     });
 
     const clippedColorFront = new THREE.Mesh(geometry, solidMat);
     clippedColorFront.castShadow = true;
-    // 关键：让实体在补面之前渲染
+    // Important: Make the solid model render before the capping plane
     clippedColorFront.renderOrder = indexOrder + 1.0;
     modelContainer.add(clippedColorFront);
 
-    // (3) 补面 —— 在实体之后渲染（每个模型也给不同颜色，便于区分）
+    // (2) Capping plane -- this material is rendered only where the stencil buffer has been set
     const planeMat = new THREE.MeshStandardMaterial({
       color: capColor,
       metalness: 0.1,
       roughness: 0.75,
-      clippingPlanes: [],
+      clippingPlanes: [], // No clipping for the cap itself
       stencilWrite: true,
       stencilFuncMask: 1 << index,
       stencilRef: 1 << index,
@@ -103,64 +110,59 @@ function createModels() {
       stencilZFail: THREE.KeepStencilOp,
       stencilZPass: THREE.KeepStencilOp,
       side: THREE.DoubleSide,
-     // polygonOffset: true,
-     //polygonOffsetFactor: -2.0,   // 根据需要调节（通常是 1）
-      //polygonOffsetUnits: i       // 每个 i 增加一点偏移
+      // polygonOffset: true,
+      // polygonOffsetFactor: -2.0, // Adjust as needed
+      // polygonOffsetUnits: i      // Add a small offset for each instance
     });
 
     const po = new THREE.Mesh(planeGeom, planeMat);
-    // 如果希望固定补面朝向，可保留；若想跟随局部平面法线，见 animate() 中注释的 lookAt
+    // Orient the capping plane to match the clipping plane's normal
     po.lookAt(new THREE.Vector3(1, 0, 0));
-console.log("index = ", index, "  i = ", i, "  indexOrder = ", indexOrder);
-    if(index == 7)
-    {
-       
-       po.renderOrder = indexOrder + 1.2;
-        po.onAfterRender = (renderer) => renderer.clearStencil(); // 清模板
+    console.log("index = ", index, "  i = ", i, "  indexOrder = ", indexOrder);
+    po.renderOrder = indexOrder + 1.1;
+
+    // After rendering the 8th object in a set, clear the stencil buffer
+    if (index == 7) {
+      po.renderOrder = indexOrder + 1.2;
+      po.onAfterRender = (renderer) => renderer.clearStencil(); // Clear stencil
     }
-    else
-    {
-        po.renderOrder = indexOrder + 1.1;
-    }
-   
-   
 
     modelContainer.add(po);
     planeObjects.push(po);
-
     modelsGroup.add(modelContainer);
   }
 }
 
-function init() {
+export default function init() {
+  document.getElementById('info').style.display = 'none';
+
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1, 100);
-  camera.position.set(2, 2, 2);
+  camera.position.set(20, 2, 2);
 
-  // 光照
+  // Lights
   scene.add(new THREE.AmbientLight(0xffffff, 1.5));
   const dirLight = new THREE.DirectionalLight(0xffffff, 3);
   dirLight.position.set(5, 10, 7.5);
-  dirLight.shadow.camera.right = 4;
-  dirLight.shadow.camera.left = -4;
-  dirLight.shadow.camera.top = 4;
-  dirLight.shadow.camera.bottom = -4;
-  dirLight.shadow.mapSize.set(1024, 1024);
+
   scene.add(dirLight);
 
-  // 单裁剪平面（-X 方向，x=0）
-  planes = [ new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0) ];
+  // Single clipping plane (facing -X direction, at x=0)
+  planes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)];
 
-  // helper
+  // Helpers
   planeHelpers = planes.map(p => new THREE.PlaneHelper(p, 5, 0xffffff));
-  planeHelpers.forEach(h => { h.visible = false; scene.add(h); });
+  planeHelpers.forEach(h => {
+    h.visible = false;
+    scene.add(h);
+  });
 
-  // 初始生成模型
+  // Initially create the models
   createModels();
 
-  // 渲染器
+  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -173,7 +175,17 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  // 控制器
+// 放大 2 倍，并固定到左上
+const SCALE = 3; // 1.5~2.5 都行
+Object.assign(stats.dom.style, {
+  position: 'fixed',
+  left: '400px',
+  top: '100px',
+  transform: `scale(${SCALE})`,
+  transformOrigin: 'top left',
+  zIndex: 9999
+});
+  // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.minDistance = 2;
   controls.maxDistance = 20;
@@ -181,10 +193,10 @@ function init() {
 
   // GUI
   const gui = new GUI();
-  gui.add(params, 'animate');
+  gui.add(params, 'maxFPX');
   gui.add(params, 'modelCount', 1, 1000, 1).name('Model Count').onChange(createModels);
   gui.add(params, 'modelOffset', 0, 3, 0.1).name('Model Offset').onChange(createModels);
-  gui.add(params, 'modelsPerRow', 1, 50, 1).name('Models Per Row').onChange(createModels); // 新增 GUI 控件
+  gui.add(params, 'modelsPerRow', 1, 50, 1).name('Models Per Row').onChange(createModels);
 
   const planeX = gui.addFolder('planeX');
   planeX.add(params.planeX, 'displayHelper').onChange(v => planeHelpers[0].visible = v);
@@ -209,29 +221,23 @@ function onWindowResize() {
 function animate() {
   const delta = clock.getDelta();
 
-  if (params.animate && modelsGroup) {
-    // 可选：整体旋转看看效果
-    // modelsGroup.rotation.y += delta * 0.2;
+  if (params.maxFPX) {
+    requestAnimationFrame(animate);
   }
 
-  // 让每个补面跟随自身容器的局部平面
+  // Make each capping plane follow the local plane of its container
   for (let i = 0; i < planeObjects.length; i++) {
     const po = planeObjects[i];
     const plane = planes[0];
 
-    // 将全局平面转换到 po.parent（模型容器）的局部坐标系
+    // Transform the global plane into the local coordinate system of po.parent (the model container)
     const inv = new THREE.Matrix4().copy(po.parent.matrixWorld).invert();
     const localPlane = plane.clone().applyMatrix4(inv);
 
+    // Position the capping plane geometry on the local plane
     localPlane.coplanarPoint(po.position);
-    // 如果希望补面法线实时对齐局部平面法线，解开下面注释
-    // po.lookAt(
-    //   po.position.x - localPlane.normal.x,
-    //   po.position.y - localPlane.normal.y,
-    //   po.position.z - localPlane.normal.z
-    // );
   }
-  //requestAnimationFrame(animate);
+
   stats.begin();
   renderer.render(scene, camera);
   stats.end();

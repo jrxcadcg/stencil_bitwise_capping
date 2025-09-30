@@ -19,7 +19,7 @@ const params = {
   planeZ: { constant: 0, negated: false, displayHelper: false }
 };
 
-init();
+//init();
 
 function createPlaneStencilGroup( geometry, plane, renderOrder ,offsetv) {
   const group = new THREE.Group();
@@ -62,7 +62,8 @@ function createPlaneStencilGroup( geometry, plane, renderOrder ,offsetv) {
   return group;
 }
 
-function init() {
+export default function init() {
+   document.getElementById('info').style.display = 'none';
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 

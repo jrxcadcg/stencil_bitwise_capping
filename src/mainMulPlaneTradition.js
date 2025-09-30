@@ -8,7 +8,7 @@ let camera, scene, renderer, object, stats;
 let planes = [], planeObjects = [];
 let clock;
 let count1 = 50; // 初始平面数量
-
+const params = { maxFPX: false };
 // 生成位于 xz 平面（y=0）的弧形平面组：法线朝向圆心
 function generateArcPlanes({
   count = 10,
@@ -69,9 +69,10 @@ function createPlaneStencilGroup(geometry, plane, renderOrder) {
   return group;
 }
 
-init();
+//init();
 
-function init() {
+export default function init() {
+	 document.getElementById('info').style.display = 'none';
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
@@ -87,15 +88,7 @@ function init() {
   object = new THREE.Group();
   scene.add(object);
 
-  // 一个简单地面（无阴影，仅用于参照）
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(12, 12),
-    new THREE.MeshBasicMaterial({ color: 0x222830 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -1;
-  scene.add(ground);
-
+  
   renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -106,7 +99,16 @@ function init() {
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
-
+// 放大 2 倍，并固定到左上
+const SCALE = 3; // 1.5~2.5 都行
+Object.assign(stats.dom.style, {
+  position: 'fixed',
+  left: '400px',
+  top: '100px',
+  transform: `scale(${SCALE})`,
+  transformOrigin: 'top left',
+  zIndex: 9999
+});
   window.addEventListener('resize', onWindowResize);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -116,8 +118,9 @@ function init() {
 
   // GUI 只保留“平面数量”
   const gui = new GUI();
-  gui.add({ planeCount: count1 }, 'planeCount', 3, 1000, 1)
-    .name('平面数量')
+    gui.add(params, 'maxFPX');
+  gui.add({ planeCount: count1 }, 'planeCount', 1, 1000, 1)
+    .name('planes number')
     .onFinishChange((v) => {
       count1 = v | 0;
       rebuildClipping();
@@ -137,8 +140,16 @@ function rebuildClipping() {
 
   // 目标几何（被裁剪的主体几何）
   // 你也可以替换成 TorusKnot/Sphere/Box 等
-  const geometry = new THREE.CylinderGeometry(0.9, 0.9, 4, 320);
+  const geometry = new THREE.CylinderGeometry(0.9, 0.9, 4, 1000);
+    // face
+    let faceCount;
+    if (geometry.index) {
+        faceCount = geometry.index.count / 3;
+    } else {
+        faceCount = geometry.attributes.position.count / 3;
+    }
 
+    console.log('face:', faceCount);
   // 每个裁剪平面对应的补面 + 模板处理
   const planeGeom = new THREE.PlaneGeometry(4, 4);
   for (let i = 0; i < count1; i++) {
@@ -194,7 +205,9 @@ function onWindowResize() {
 
 function animate() {
   const delta = clock.getDelta();
-
+    if ( params.maxFPX ) {
+         requestAnimationFrame(animate);
+  }
   // 让每个补面始终贴合对应平面
   for (let i = 0; i < planeObjects.length; i++) {
     const plane = planes[i];

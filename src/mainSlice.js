@@ -11,7 +11,8 @@ let planes1, planes2, planes3;
 
 // 用于把每个补面 Mesh 对应回它所属的数学平面
 let planeObjectPlanes = [];
-
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('src/texture/crate_jpeg.jpg');
 const params = {
   animate: true,
   planeX: { constant: 0, negated: false, displayHelper: false },
@@ -19,7 +20,7 @@ const params = {
   planeZ: { constant: 0, negated: false, displayHelper: false }
 };
 
-init();
+//init();
 
 function createPlaneStencilGroup( geometry, plane, renderOrder ,offsetv) {
   const group = new THREE.Group();
@@ -62,7 +63,7 @@ function createPlaneStencilGroup( geometry, plane, renderOrder ,offsetv) {
   return group;
 }
 
-function init() {
+export default function init() {
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
@@ -103,7 +104,7 @@ function init() {
   } );
 
   // 主体几何（被裁剪的对象）——你可以随意替换成 Box/TorusKnot 等
-  const geometry = new THREE.CylinderGeometry(1, 1, 3, 100);
+  const geometry = new THREE.CylinderGeometry(1, 1, 3.5, 100);
 
   object = new THREE.Group();
   scene.add( object );
@@ -141,9 +142,9 @@ plane.applyMatrix4(matrix);
      
       // plane is clipped by the other clipping planes (同组内)
       const planeMat = new THREE.MeshStandardMaterial( {
-        color: color,
-        metalness: 0.1,
-        roughness: 0.75,
+        
+      map:texture,
+       
         clippingPlanes: set.filter( p => p !== plane ),
         stencilWrite: true,
         stencilRef: 0,
@@ -170,9 +171,9 @@ plane.applyMatrix4(matrix);
 
     // 为这一组创建被裁剪的主体 Mesh（颜色区分）
     const material = new THREE.MeshStandardMaterial( {
-      color: new THREE.Color().setHSL(0.5, 0.6, 0.5),
-      metalness: 0.1,
-      roughness: 0.75,
+     
+      map:texture,
+     
       clippingPlanes: set,
       clipShadows: false,
       shadowSide: THREE.DoubleSide,
@@ -249,12 +250,9 @@ function onWindowResize() {
 }
 
 function animate() {
+   document.getElementById('info').style.display = 'none';
   const delta = clock.getDelta();
 
-  if ( params.animate ) {
-    // object rotation 可按需打开
-    // object.rotation.y += delta * 0.2;
-  }
 
   // 更新每个补面的位置与朝向：使用 planeObjectPlanes 映射
   for ( let i = 0; i < planeObjects.length; i ++ ) {

@@ -37,7 +37,7 @@ const assets = [
   'DZ_217','DZ_218'
 ];
 
-init();
+//init();
 
 // ----------------- 工具：补面显隐 -----------------
 function setCapsVisible(flag) {
@@ -258,7 +258,8 @@ function loadAllAssets(camera, controls) {
 }
 
 // ----------------- 初始化/循环 -----------------
-function init() {
+export default function init() {
+   document.getElementById('info').style.display = 'none';
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
