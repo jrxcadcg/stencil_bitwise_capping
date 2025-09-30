@@ -10,8 +10,6 @@ document.getElementById('mainbitwise').addEventListener('click', mainbitwise)
 
 // document.getElementById('mainbitwiseGeo').addEventListener('click', mainbitwiseGeo)
 
-
-
 // import mainBreakdown from './mainBreakdown.js'
 
 // document.getElementById('mainBreakdown').addEventListener('click', mainBreakdown)

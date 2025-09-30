@@ -7,14 +7,14 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 let camera, scene, renderer, object, stats;
 let planes = [], planeObjects = [];
 let clock;
-let count1 = 50; // 初始平面数量
+let count1 = 50; 
 const params = { maxFPX: false };
-// 生成位于 xz 平面（y=0）的弧形平面组：法线朝向圆心
+
 function generateArcPlanes({
   count = 10,
   radius = 1,
-  startAngle = -Math.PI / 2, // 半圆：-90° → +90°
-  endAngle   =  Math.PI / 2
+  startAngle = -Math.PI / 2, 
+  endAngle = Math.PI / 2
 } = {}) {
   const result = [];
   for (let i = 0; i < count; i++) {
@@ -72,14 +72,14 @@ function createPlaneStencilGroup(geometry, plane, renderOrder) {
 //init();
 
 export default function init() {
-	 document.getElementById('info').style.display = 'none';
+  document.getElementById('info').style.display = 'none';
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1, 100);
   camera.position.set(4, 4, 4);
 
-  // 光照（无阴影）
+
   scene.add(new THREE.AmbientLight(0xffffff, 1.25));
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
   dirLight.position.set(5, 10, 7.5);
@@ -88,27 +88,27 @@ export default function init() {
   object = new THREE.Group();
   scene.add(object);
 
-  
+
   renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x263238);
   renderer.setAnimationLoop(animate);
-  renderer.localClippingEnabled = true; // 开启局部裁剪
+  renderer.localClippingEnabled = true; 
   document.body.appendChild(renderer.domElement);
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
-// 放大 2 倍，并固定到左上
-const SCALE = 3; // 1.5~2.5 都行
-Object.assign(stats.dom.style, {
-  position: 'fixed',
-  left: '400px',
-  top: '100px',
-  transform: `scale(${SCALE})`,
-  transformOrigin: 'top left',
-  zIndex: 9999
-});
+
+  const SCALE = 3;
+  Object.assign(stats.dom.style, {
+    position: 'fixed',
+    left: '400px',
+    top: '100px',
+    transform: `scale(${SCALE})`,
+    transformOrigin: 'top left',
+    zIndex: 9999
+  });
   window.addEventListener('resize', onWindowResize);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -116,9 +116,9 @@ Object.assign(stats.dom.style, {
   controls.maxDistance = 20;
   controls.update();
 
-  // GUI 只保留“平面数量”
+  // GUI 
   const gui = new GUI();
-    gui.add(params, 'maxFPX');
+  gui.add(params, 'maxFPX');
   gui.add({ planeCount: count1 }, 'planeCount', 1, 1000, 1)
     .name('planes number')
     .onFinishChange((v) => {
@@ -126,31 +126,30 @@ Object.assign(stats.dom.style, {
       rebuildClipping();
     });
 
-  // 首次构建
+
   rebuildClipping();
 }
 
 function rebuildClipping() {
-  // 清掉旧内容
+
   planeObjects.forEach(po => po.parent?.remove(po));
   planeObjects = [];
   object.clear();
 
   planes = generateArcPlanes({ count: count1, radius: 1 });
 
-  // 目标几何（被裁剪的主体几何）
-  // 你也可以替换成 TorusKnot/Sphere/Box 等
-  const geometry = new THREE.CylinderGeometry(0.9, 0.9, 4, 1000);
-    // face
-    let faceCount;
-    if (geometry.index) {
-        faceCount = geometry.index.count / 3;
-    } else {
-        faceCount = geometry.attributes.position.count / 3;
-    }
 
-    console.log('face:', faceCount);
-  // 每个裁剪平面对应的补面 + 模板处理
+  const geometry = new THREE.CylinderGeometry(0.9, 0.9, 4, 1000);
+  // face
+  let faceCount;
+  if (geometry.index) {
+    faceCount = geometry.index.count / 3;
+  } else {
+    faceCount = geometry.attributes.position.count / 3;
+  }
+
+  console.log('face:', faceCount);
+
   const planeGeom = new THREE.PlaneGeometry(4, 4);
   for (let i = 0; i < count1; i++) {
     const poGroup = new THREE.Group();
@@ -170,7 +169,7 @@ function rebuildClipping() {
       stencilFail: THREE.ReplaceStencilOp,
       stencilZFail: THREE.ReplaceStencilOp,
       stencilZPass: THREE.ReplaceStencilOp
-      // 无阴影相关设置
+  
     });
 
     const po = new THREE.Mesh(planeGeom, planeMat);
@@ -183,13 +182,13 @@ function rebuildClipping() {
     scene.add(poGroup);
   }
 
-  // 被裁剪的主体
+
   const material = new THREE.MeshStandardMaterial({
     color: 0xFFC107,
     metalness: 0.1,
     roughness: 0.75,
     clippingPlanes: planes
-    // 无 clipShadows / shadowSide
+
   });
   const clipped = new THREE.Mesh(geometry, material);
   clipped.rotateZ(-Math.PI / 2);
@@ -205,10 +204,10 @@ function onWindowResize() {
 
 function animate() {
   const delta = clock.getDelta();
-    if ( params.maxFPX ) {
-         requestAnimationFrame(animate);
+  if (params.maxFPX) {
+    requestAnimationFrame(animate);
   }
-  // 让每个补面始终贴合对应平面
+
   for (let i = 0; i < planeObjects.length; i++) {
     const plane = planes[i];
     const po = planeObjects[i];

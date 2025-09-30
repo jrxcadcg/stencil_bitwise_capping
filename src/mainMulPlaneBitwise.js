@@ -65,7 +65,7 @@ function createPlaneStencilGroup(geometry, plane, renderOrder) {
 //init();
 
 export default function init() {
-	 document.getElementById('info').style.display = 'none';
+    document.getElementById('info').style.display = 'none';
     clock = new THREE.Clock();
     scene = new THREE.Scene();
 
@@ -81,7 +81,7 @@ export default function init() {
     object = new THREE.Group();
     scene.add(object);
 
-    
+
 
     renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -94,16 +94,16 @@ export default function init() {
 
     stats = new Stats();
     document.body.appendChild(stats.dom);
-// 放大 2 倍，并固定到左上
-const SCALE = 3; // 1.5~2.5 都行
-Object.assign(stats.dom.style, {
-  position: 'fixed',
-  left: '400px',
-  top: '100px',
-  transform: `scale(${SCALE})`,
-  transformOrigin: 'top left',
-  zIndex: 9999
-});
+
+    const SCALE = 3;
+    Object.assign(stats.dom.style, {
+        position: 'fixed',
+        left: '400px',
+        top: '100px',
+        transform: `scale(${SCALE})`,
+        transformOrigin: 'top left',
+        zIndex: 9999
+    });
     window.addEventListener('resize', onWindowResize);
 
     const controls = new OrbitControls(camera, renderer.domElement);

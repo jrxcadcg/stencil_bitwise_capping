@@ -16,8 +16,8 @@ let modelsGroup; // Top-level group to hold all models
 const params = {
     maxFPX: false,
     modelCount: 10,
-    modelOffset: 1.2, // Spacing between rows and columns (used for both Z-axis column spacing and Y-axis row spacing)
-    modelsPerRow: 10, // Number of models per row (arranged along the Z-axis), wraps to the next row along the Y-axis
+    modelOffset: 1.2,
+    modelsPerRow: 10,
     planeX: {
         constant: 0,
         negated: false,
@@ -203,16 +203,16 @@ export default function init() {
     stats = new Stats();
     document.body.appendChild(stats.dom);
 
-// 放大 2 倍，并固定到左上
-const SCALE = 3; // 1.5~2.5 都行
-Object.assign(stats.dom.style, {
-  position: 'fixed',
-  left: '400px',
-  top: '100px',
-  transform: `scale(${SCALE})`,
-  transformOrigin: 'top left',
-  zIndex: 9999
-});
+
+    const SCALE = 3;
+    Object.assign(stats.dom.style, {
+        position: 'fixed',
+        left: '400px',
+        top: '100px',
+        transform: `scale(${SCALE})`,
+        transformOrigin: 'top left',
+        zIndex: 9999
+    });
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minDistance = 2;

@@ -33,15 +33,15 @@ function createModels() {
 
   // Shared resources
   const geometry = new THREE.TorusGeometry(0.4, 0.15, 1000, 1000); // Can also be SphereGeometry or TorusKnotGeometry
-      // face
-    let faceCount;
-    if (geometry.index) {
-        faceCount = geometry.index.count / 3;
-    } else {
-        faceCount = geometry.attributes.position.count / 3;
-    }
+  // face
+  let faceCount;
+  if (geometry.index) {
+    faceCount = geometry.index.count / 3;
+  } else {
+    faceCount = geometry.attributes.position.count / 3;
+  }
 
-    console.log('face:', faceCount);
+  console.log('face:', faceCount);
   // const geometry = new THREE.TorusKnotGeometry(0.4, 0.15, 220, 600);
   // const geometry = new THREE.SphereGeometry(0.8, 64, 32);
   const planeGeom = new THREE.PlaneGeometry(4, 4);
@@ -175,16 +175,16 @@ export default function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-// 放大 2 倍，并固定到左上
-const SCALE = 3; // 1.5~2.5 都行
-Object.assign(stats.dom.style, {
-  position: 'fixed',
-  left: '400px',
-  top: '100px',
-  transform: `scale(${SCALE})`,
-  transformOrigin: 'top left',
-  zIndex: 9999
-});
+
+  const SCALE = 3;
+  Object.assign(stats.dom.style, {
+    position: 'fixed',
+    left: '400px',
+    top: '100px',
+    transform: `scale(${SCALE})`,
+    transformOrigin: 'top left',
+    zIndex: 9999
+  });
   // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.minDistance = 2;
