@@ -6,15 +6,15 @@ import mainbitwise from './mainbitwise.js'
 
 document.getElementById('mainbitwise').addEventListener('click', mainbitwise)
 
-import mainbitwiseGeo from './mainbitwiseGeo.js'
+// import mainbitwiseGeo from './mainbitwiseGeo.js'
 
-document.getElementById('mainbitwiseGeo').addEventListener('click', mainbitwiseGeo)
+// document.getElementById('mainbitwiseGeo').addEventListener('click', mainbitwiseGeo)
 
 
 
-import mainBreakdown from './mainBreakdown.js'
+// import mainBreakdown from './mainBreakdown.js'
 
-document.getElementById('mainBreakdown').addEventListener('click', mainBreakdown)
+// document.getElementById('mainBreakdown').addEventListener('click', mainBreakdown)
 
 import mainSlice from './mainSlice.js'
 

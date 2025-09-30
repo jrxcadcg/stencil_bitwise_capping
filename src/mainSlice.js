@@ -12,7 +12,7 @@ let planes1, planes2, planes3;
 // 用于把每个补面 Mesh 对应回它所属的数学平面
 let planeObjectPlanes = [];
 const textureLoader = new THREE.TextureLoader();
-const texture = textureLoader.load('src/texture/crate_jpeg.jpg');
+const texture = textureLoader.load('/texture/crate_jpeg.jpg');
 const params = {
   animate: true,
   planeX: { constant: 0, negated: false, displayHelper: false },
@@ -68,7 +68,7 @@ export default function init() {
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera( 36, window.innerWidth / window.innerHeight, 1, 100 );
-  camera.position.set( 2, 2, 2 );
+  camera.position.set( 0, 2, 10 );
 
   scene.add( new THREE.AmbientLight( 0xffffff, 1.5 ) );
 
