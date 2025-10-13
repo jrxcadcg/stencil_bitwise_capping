@@ -1,4 +1,4 @@
-// main.js
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -9,14 +9,14 @@ const manager = new THREE.LoadingManager();
 let camera, scene, renderer, stats;
 let planes, planeHelpers;
 let clock;
-let modelsGroup;                 // 顶层组，容纳所有模型
+let modelsGroup;                 // Top-level group containing all models
 
-// ✅ 剖切/补面相关
-let slicePlane;                  // 世界空间剖切平面（x = constant）
-let sliceHelper;                 // 可视化
-const planeCaps = [];            // 记录补面，便于清理
+// ✅ Slicing / Capping related
+let slicePlane;                  // World-space slicing plane (x = constant)
+let sliceHelper;                 // Visualization helper
+const planeCaps = [];            // Record caps for cleanup
 
-// 你的切面中心
+// Slice center position
 const SLICE_CENTER = { x: -247330.90625, y: 224444.83984375, z: 13011.81396484375 };
 
 const params = {
@@ -25,8 +25,8 @@ const params = {
   modelOffset: 1.2,
   modelsPerRow: 8,
   planeX: { constant: 0, negated: false, displayHelper: false },
-  capsVisible: true,      // ✅ 补面显隐
-  sliceEnabled: true      // ✅ 剖切开关
+  capsVisible: true,      // ✅ Show/Hide caps
+  sliceEnabled: true      // ✅ Enable/Disable slicing
 };
 
 const assets = [
@@ -37,25 +37,47 @@ const assets = [
   'DZ_217','DZ_218'
 ];
 
+const textureNames = [
+  "T_FenXiSha",
+  "T_FenZhiNianTu",
+  "T_FenZhiNianTuJiaFenTu",
+  "T_HanShaFenZhiNianTu",
+  "T_HanSuiShiFenZhiNianTu",
+  "T_HanSuiShiNianTu",
+  "T_NiZhiFenShaYan",
+  "T_ShaLiYan",
+  "T_ShaZhiFenTu",
+  "T_SuiShiNianTu",
+  "T_SuTianTu",
+  "T_YuanLi",
+  "T_YuNiZhiFenZhiNiTu",
+  "T_YuNiZhiNianTu",
+  "T_YuNiZhiTianTu",
+  "T_ZaTianTu",
+  "T_FenXiSha",
+  "T_FenZhiNianTu"
+];
+
+let textureArray = []
 //init();
 
-// ----------------- 工具：补面显隐 -----------------
+// ----------------- Utility: Toggle cap visibility -----------------
 function setCapsVisible(flag) {
   planeCaps.forEach(m => { if (m) m.visible = flag; });
-  // 也可联动 helper：
+  // Can also link helper visibility:
   // if (sliceHelper) sliceHelper.visible = flag;
 }
 
-// ----------------- 剖切开关 -----------------
+// ----------------- Slice toggle -----------------
 function setSliceEnabled(flag) {
   if (!modelsGroup) return;
 
   if (flag) {
-    // 重新应用剖切与补面
+    // Reapply slicing and caps
     sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene);
     setCapsVisible(params.capsVisible);
   } else {
-    // 关闭剖切：移除补面 + 清空所有材质的裁剪/模板
+    // Disable slicing: remove caps + clear all clipping/stencil data from materials
     planeCaps.forEach(m => m?.parent?.remove(m));
     planeCaps.length = 0;
 
@@ -64,8 +86,8 @@ function setSliceEnabled(flag) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach(mat => {
         if (!mat) return;
-        mat.clippingPlanes = [];     // 取消裁剪
-        mat.stencilWrite = false;    // 关闭模板写入
+        mat.clippingPlanes = [];     // Remove clipping
+        mat.stencilWrite = false;    // Disable stencil writing
         mat.needsUpdate = true;
       });
     });
@@ -74,50 +96,64 @@ function setSliceEnabled(flag) {
   }
 }
 
-// ----------------- 剖切 + 补面（按 X 轴，从 SLICE_CENTER.x 处） -----------------
+// ----------------- Slice + Cap (along X-axis from SLICE_CENTER.x) -----------------
 function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
   if (!modelsGroup) return;
 
-  // 1) 整体包围盒（用于 helper 尺寸与 cap 尺寸）
+  // 1) Get overall bounding box (for helper and cap sizing)
   const bbox = new THREE.Box3().setFromObject(modelsGroup);
   const size = bbox.getSize(new THREE.Vector3());
   const center = bbox.getCenter(new THREE.Vector3());
 
-  // 2) 世界平面（法线 +X, x = -constant）
+  // 2) World plane (normal +X, x = -constant)
   const x0 = SLICE_CENTER.x;
   slicePlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -x0);
 
-  // helper（可开可关）
+  // Helper (optional)
   // if (sliceHelper) scene.remove(sliceHelper);
   // sliceHelper = new THREE.PlaneHelper(slicePlane, size.length(), 0xff6677);
   // scene.add(sliceHelper);
 
-  // 3) 清理旧补面
+  // 3) Remove old caps
   planeCaps.forEach(m => m?.parent?.remove(m));
   planeCaps.length = 0;
 
-  // ★★★ 把世界平面变换到 modelsGroup 的局部空间，保证 cap 完全对齐
+  // ★★★ Convert world plane into modelsGroup's local space to ensure perfect alignment
   const inv = new THREE.Matrix4().copy(modelsGroup.matrixWorld).invert();
   const localPlane = slicePlane.clone().applyMatrix4(inv).normalize();
   const localP0 = localPlane.normal.clone().multiplyScalar(-localPlane.constant);
 
   let meshIndex = 0;
 
-  // 4) 遍历 Mesh：实体写模板 + cap 用 Equal
+  // 4) Traverse meshes: solids write stencil + caps use Equal function
   modelsGroup.traverse(obj => {
     if (!obj.isMesh) return;
+     const geometry = obj.geometry;
 
+  // Output UV information
+  const uvAttr = geometry.attributes.uv;
+  if (uvAttr) {
+    console.log(`✅ UV found on ${obj.name || '[unnamed mesh]'}:`, uvAttr);
+  } else {
+    console.warn(`❌ No UV on ${obj.name || '[unnamed mesh]'}`);
+  }
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     const bit = meshIndex % 8;                 // 0..7
-    const bucket = Math.floor(meshIndex / 8);  // 分批控制 renderOrder
+    const bucket = Math.floor(meshIndex / 8);  // Batch render order control
+    const texture = textureArray[meshIndex];
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.colorSpace  = THREE.SRGBColorSpace;
+    // Set UV repeat scale (X, Y)
+    texture.repeat.set(0.01, 0.01); // Repeat texture in both directions
 
-    // 4.1 实体：裁剪 + 模板写入
+    // 4.1 Solid: clipping + stencil write
     mats.forEach(mat => {
       if (!mat) return;
-      mat.clippingPlanes = [slicePlane]; // 用世界平面裁剪
-      mat.clipShadows   = true;
-      mat.side          = THREE.DoubleSide;
-
+      mat.clippingPlanes = [slicePlane]; // Use world plane for clipping
+      mat.side = THREE.DoubleSide;
+      mat.color = new THREE.Color(0xffffff);
+      mat.map = texture,
       mat.stencilWrite      = true;
       mat.stencilWriteMask  = (1 << bit);
       mat.stencilRef        = (1 << bit);
@@ -125,23 +161,29 @@ function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
       mat.stencilFail       = THREE.InvertStencilOp;
       mat.stencilZFail      = THREE.InvertStencilOp;
       mat.stencilZPass      = THREE.InvertStencilOp;
-
       mat.needsUpdate = true;
     });
     obj.renderOrder = bucket + 1.0;
 
-    // 4.2 补面：同色 + 模板 Equal，只显示切割轮廓
+    // Set texture wrapping to RepeatWrapping
+    const texture2 = texture.clone(); // Create a clone
+    texture2.wrapS = THREE.RepeatWrapping;
+    texture2.wrapT = THREE.RepeatWrapping;
+
+    // Set UV scale (X, Y)
+    texture2.repeat.set(20, 2); // Repeat texture more times
+    // 4.2 Cap: same color + stencil Equal, only display the slice surface
     const sampleMat = mats[0];
     const capColor = (sampleMat && sampleMat.color)
       ? sampleMat.color.clone()
       : new THREE.Color(0x888888);
 
     const capMat = new THREE.MeshStandardMaterial({
-      color: capColor,
-      metalness: 0.1,
-      roughness: 0.75,
+      // color: capColor,
+      map: texture2,
+      color : new THREE.Color(0xffffff),
       side: THREE.DoubleSide,
-      clippingPlanes: [], // cap 不再裁剪
+      clippingPlanes: [], // Cap not clipped
       stencilWrite: true,
       stencilFuncMask: (1 << bit),
       stencilRef: (1 << bit),
@@ -155,8 +197,8 @@ function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
     const capGeom = new THREE.PlaneGeometry(capSize, capSize);
     const cap = new THREE.Mesh(capGeom, capMat);
 
-    // === 在 modelsGroup“局部空间”对齐 cap 的位置与角度 ===
-    cap.position.copy(localP0); // 平面上一点
+    // === Align cap position and orientation in local space ===
+    cap.position.copy(localP0); // A point on the plane
     cap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), localPlane.normal);
     cap.scale.y = 0.1;
     cap.renderOrder = bucket + 1.1;
@@ -165,7 +207,7 @@ function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
       cap.renderOrder = bucket + 1.2;
     }
 
-    // ✅ 初始显隐跟随 params
+    // ✅ Initial visibility follows params
     cap.visible = params.capsVisible;
 
     modelsGroup.add(cap);
@@ -175,7 +217,7 @@ function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
   });
 }
 
-// ----------------- 资源释放 -----------------
+// ----------------- Resource cleanup -----------------
 function disposeGroup(group) {
   group.traverse((child) => {
     if (child.isMesh) {
@@ -186,7 +228,7 @@ function disposeGroup(group) {
   });
 }
 
-// ----------------- 相机对焦 -----------------
+// ----------------- Focus camera on object -----------------
 function fitCameraToObject(camera, object, controls, fitOffset = 1.2) {
   const box = new THREE.Box3().setFromObject(object);
   const size = box.getSize(new THREE.Vector3());
@@ -211,11 +253,16 @@ function fitCameraToObject(camera, object, controls, fitOffset = 1.2) {
   }
 }
 
-// ----------------- 批量加载：把所有 FBX 放入 modelsGroup（保持原始坐标） -----------------
+// ----------------- Batch load all FBX models (keep original coordinates) -----------------
 function loadAllAssets(camera, controls) {
+
+  const textureLoader = new THREE.TextureLoader();
+  const texturePath = '/Underground/'; // Change to your actual path
+  textureArray = textureNames.map(name => textureLoader.load(`${texturePath}${name}.PNG`));
+
   const loader = new FBXLoader(manager);
 
-  // 先清空旧的 modelsGroup
+  // Clear previous modelsGroup
   if (modelsGroup) {
     scene.remove(modelsGroup);
     disposeGroup(modelsGroup);
@@ -235,7 +282,7 @@ function loadAllAssets(camera, controls) {
         }
       });
 
-      // 若 FBX 坐标系是 Z 向上，可统一转一下
+      // If FBX uses Z-up, rotate to Y-up
       group.rotateX(-Math.PI / 2);
 
       modelsGroup.add(group);
@@ -243,11 +290,11 @@ function loadAllAssets(camera, controls) {
       loaded++;
       if (loaded === assets.length) {
         fitCameraToObject(camera, modelsGroup, controls, 1.5);
-        // 初次按开关状态应用/关闭剖切
+        // Apply/disable slicing initially based on toggle
         setSliceEnabled(params.sliceEnabled);
       }
     }, undefined, (err) => {
-      console.error(`加载失败: ${name}.fbx`, err);
+      console.error(`Failed to load: ${name}.fbx`, err);
       loaded++;
       if (loaded === assets.length) {
         fitCameraToObject(camera, modelsGroup, controls, 1.5);
@@ -257,67 +304,54 @@ function loadAllAssets(camera, controls) {
   });
 }
 
-// ----------------- 初始化/循环 -----------------
+// ----------------- Initialization / Animation loop -----------------
 export default function init() {
-   document.getElementById('info').style.display = 'none';
+  document.getElementById('info').style.display = 'none';
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1, 1000);
   camera.position.set(2, 2, 2);
 
-  // 灯光
+  // Lighting
   scene.add(new THREE.AmbientLight(0xffffff, 1.5));
   const dirLight = new THREE.DirectionalLight(0xffffff, 3);
   dirLight.position.set(5, 10, 7.5);
-  dirLight.castShadow = true;
-  dirLight.shadow.camera.right = 4;
-  dirLight.shadow.camera.left = -4;
-  dirLight.shadow.camera.top = 4;
-  dirLight.shadow.camera.bottom = -4;
-  dirLight.shadow.mapSize.set(1024, 1024);
+
   scene.add(dirLight);
 
-  // 单裁剪平面（你的 GUI 演示用；不影响我们的剖切逻辑）
+  // Single clipping plane (used for GUI demo; does not affect slicing logic)
   planes = [ new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0) ];
   planeHelpers = planes.map(p => new THREE.PlaneHelper(p, 5, 0xffffff));
   planeHelpers.forEach(h => { h.visible = false; scene.add(h); });
 
-  // 渲染器
+  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x263238);
   renderer.shadowMap.enabled = true;
-  renderer.localClippingEnabled = true; // ✅ 必须打开
+  renderer.localClippingEnabled = true; // ✅ Must be enabled
+  renderer.outputColorSpace  = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
 
   // Stats
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  // 轨道控制
+  // Orbit controls
   const controls = new OrbitControls(camera, renderer.domElement);
 
-  // 批量加载所有 FBX，并在全部完成后自动对焦 +（按开关）剖切补面
+  // Load all FBX models and auto-focus + apply slice toggle
   loadAllAssets(camera, controls);
 
   // GUI
   const gui = new GUI();
-  gui.add(params, 'animate');
-  const planeX = gui.addFolder('planeX');
-  planeX.add(params.planeX, 'displayHelper').onChange(v => planeHelpers[0].visible = v);
-  planeX.add(params.planeX, 'constant', -1, 1, 0.001).onChange(d => planes[0].constant = d);
-  planeX.add(params.planeX, 'negated').onChange(() => {
-    planes[0].negate();
-    params.planeX.constant = planes[0].constant;
-  });
-  planeX.open();
 
-  // ✅ 补面可见性开关
+  // ✅ Cap visibility toggle
   gui.add(params, 'capsVisible').name('Show Caps').onChange(v => setCapsVisible(v));
 
-  // ✅ 剖切开关
+  // ✅ Slice enable toggle
   gui.add(params, 'sliceEnabled').name('Enable Slicing').onChange(v => setSliceEnabled(v));
 
   window.addEventListener('resize', onWindowResize);

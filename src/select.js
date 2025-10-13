@@ -6,9 +6,9 @@ import mainbitwise from './mainbitwise.js'
 
 document.getElementById('mainbitwise').addEventListener('click', mainbitwise)
 
-// import mainbitwiseGeo from './mainbitwiseGeo.js'
+ import mainbitwiseGeo from './mainbitwiseGeoTexture.js'
 
-// document.getElementById('mainbitwiseGeo').addEventListener('click', mainbitwiseGeo)
+ document.getElementById('mainbitwiseGeoTexture').addEventListener('click', mainbitwiseGeo)
 
 // import mainBreakdown from './mainBreakdown.js'
 
