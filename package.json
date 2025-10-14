@@ -12,6 +12,7 @@
     "vite": "^7.1.2"
   },
   "dependencies": {
+    "element-plus": "^2.11.4",
     "three": "^0.180.0"
   }
 }

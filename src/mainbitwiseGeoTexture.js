@@ -4,6 +4,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { ElLoading } from 'element-plus';
+import 'element-plus/dist/index.css'
 
 const manager = new THREE.LoadingManager();
 let camera, scene, renderer, stats;
@@ -61,10 +63,12 @@ const textureNames = [
 let textureArray = []
 //init();
 
-// ----------------- Utility: Toggle cap visibility -----------------
+let loadingInstance1;
+
+// loadingInstance1.close()
+
 function setCapsVisible(flag) {
   planeCaps.forEach(m => { if (m) m.visible = flag; });
-  // Can also link helper visibility:
   // if (sliceHelper) sliceHelper.visible = flag;
 }
 
@@ -108,11 +112,6 @@ function sliceGroupWithCaps(modelsGroup, SLICE_CENTER, renderer, scene) {
   // 2) World plane (normal +X, x = -constant)
   const x0 = SLICE_CENTER.x;
   slicePlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -x0);
-
-  // Helper (optional)
-  // if (sliceHelper) scene.remove(sliceHelper);
-  // sliceHelper = new THREE.PlaneHelper(slicePlane, size.length(), 0xff6677);
-  // scene.add(sliceHelper);
 
   // 3) Remove old caps
   planeCaps.forEach(m => m?.parent?.remove(m));
@@ -239,18 +238,19 @@ function fitCameraToObject(camera, object, controls, fitOffset = 1.2) {
   let distance = (maxSize / 2) / Math.tan(fov / 2);
   distance *= fitOffset;
 
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  camera.position.copy(center).add(dir.multiplyScalar(-distance));
-
+ 
   camera.near = Math.max(0.1, distance / 100);
   camera.far  = distance * 100;
-  camera.updateProjectionMatrix();
+ camera.updateProjectionMatrix();
 
   if (controls) {
     controls.target.copy(center);
     controls.update();
   }
+    camera.position.set(-427108.84, 83848.92, -188624.30);
+
+    camera.rotation.set(-1.66, -1.27, -1.67);
+   loadingInstance1.close()
 }
 
 // ----------------- Batch load all FBX models (keep original coordinates) -----------------
@@ -274,7 +274,7 @@ function loadAllAssets(camera, controls) {
   let loaded = 0;
 
   assets.forEach((name) => {
-    loader.load(`src/models/geo/${name}.fbx`, (group) => {
+    loader.load(`/models/geo/${name}.FBX`, (group) => {
       group.traverse(child => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -307,12 +307,14 @@ function loadAllAssets(camera, controls) {
 // ----------------- Initialization / Animation loop -----------------
 export default function init() {
   document.getElementById('info').style.display = 'none';
+  loadingInstance1 = ElLoading.service({ text: "Loading……" })
   clock = new THREE.Clock();
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1, 1000);
-  camera.position.set(2, 2, 2);
 
+//x=-443456.95, y=95018.34, z=-178857.23
+  camera.position.set(-443456.95, 95018.34, -178857.23);
   // Lighting
   scene.add(new THREE.AmbientLight(0xffffff, 1.5));
   const dirLight = new THREE.DirectionalLight(0xffffff, 3);
@@ -367,9 +369,6 @@ function onWindowResize() {
 function animate() {
   const delta = clock.getDelta();
 
-  if (params.animate && modelsGroup) {
-    // modelsGroup.rotation.y += delta * 0.2;
-  }
 
   stats.begin();
   renderer.render(scene, camera);
